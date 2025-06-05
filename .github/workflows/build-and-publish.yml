@@ -30,6 +30,7 @@ jobs:
       contents: read
       packages: write
       security-events: write
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -101,27 +102,6 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           cache-dir: .cache/trivy
-
-      - name: Validate SARIF file
-        if: always()
-        run: |
-          if [ -f "trivy-results.sarif" ]; then
-            echo "✓ SARIF file exists"
-            # Basic JSON validation
-            if jq empty trivy-results.sarif 2>/dev/null; then
-              echo "✓ SARIF file is valid JSON"
-              # Check if it has the basic SARIF structure
-              if jq -e '.version and .runs' trivy-results.sarif >/dev/null 2>&1; then
-                echo "✓ SARIF file has required structure"
-              else
-                echo "⚠ SARIF file missing required structure, but continuing..."
-              fi
-            else
-              echo "⚠ SARIF file is not valid JSON, but continuing..."
-            fi
-          else
-            echo "⚠ SARIF file not found, skipping validation"
-          fi
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
