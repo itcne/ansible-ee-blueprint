@@ -1,0 +1,53 @@
+---
+version: 3
+
+images:
+  base_image:
+    name: registry.access.redhat.com/ubi9/python-312-minimal:9.6-1747319120
+
+options:
+  user: '1000'
+  package_manager_path: /usr/bin/microdnf
+
+
+dependencies:
+  python_interpreter:
+    python_path: /usr/bin/python3.12
+
+  # (optional) install ansible-core if the base image doesn't already contain it
+  ansible_core:
+    package_pip: ansible-core~=2.16.0
+
+  # (optional) install ansible-runner if the base image doesn't already contain it
+  ansible_runner:
+    package_pip: ansible-runner>=2.3.0
+
+  # Python packages from requirements.txt
+  python: requirements.txt
+  
+  # System packages from bindep.txt
+  system: bindep.txt
+
+  # Galaxy collections and roles from requirements.yml
+  galaxy: requirements.yml
+
+additional_build_steps:
+  prepend_base: |
+    # Clean package manager cache to reduce image size
+    RUN microdnf clean all
+  
+  append_final: |
+    # Create build information file for runtime inspection
+    RUN echo "=== Ansible Execution Environment Build Info ===" > /etc/ee-build-info.txt && \
+        echo "Build date: $(date)" >> /etc/ee-build-info.txt && \
+        echo "Base image: UBI9 Python 3.12 minimal" >> /etc/ee-build-info.txt && \
+        echo "Python version: $(python3 --version)" >> /etc/ee-build-info.txt && \
+        echo "Ansible version: $(ansible --version | head -1)" >> /etc/ee-build-info.txt && \
+        echo "Installed collections:" >> /etc/ee-build-info.txt && \
+        ansible-galaxy collection list >> /etc/ee-build-info.txt 2>/dev/null || echo "No collections installed" >> /etc/ee-build-info.txt && \
+        echo "=== End Build Info ===" >> /etc/ee-build-info.txt && \
+        echo "Build information saved to /etc/ee-build-info.txt" && \
+        cat /etc/ee-build-info.txt && \
+        # Final cleanup to reduce image size
+        microdnf clean all && \
+        rm -rf /tmp/* /var/tmp/* /root/.cache

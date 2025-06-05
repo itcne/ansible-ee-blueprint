@@ -1,0 +1,13 @@
+# Essential system packages for UBI9 Python minimal base image
+# Note: python3 and python3-pip are already included in the base image
+
+# Core networking and connection tools
+git [platform:rpm]
+openssh-clients [platform:rpm]
+rsync [platform:rpm]
+
+# Authentication helper for SSH connections
+sshpass [platform:rpm]
+
+# Minimal utilities for common automation tasks
+unzip [platform:rpm]

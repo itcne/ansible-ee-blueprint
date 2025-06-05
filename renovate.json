@@ -1,0 +1,67 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "labels": ["dependencies"],
+  "timezone": "UTC",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2,
+  "separateMinorPatch": true,
+  "packageRules": [
+    {
+      "description": "Python dependencies",
+      "matchFiles": ["requirements.txt"],
+      "groupName": "python dependencies",
+      "labels": ["python"]
+    },
+    {
+      "description": "Ansible collections",
+      "matchFiles": ["requirements.yml"],
+      "groupName": "ansible collections",
+      "labels": ["ansible", "collections"]
+    },
+    {
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "automerge": true,
+      "labels": ["github-actions"]
+    },
+    {
+      "description": "Base image - monthly updates",
+      "matchFiles": ["execution-environment.yml"],
+      "matchStrings": ["registry.access.redhat.com/ubi9/*"],
+      "schedule": ["before 6am on the first day of the month"],
+      "labels": ["base-image"]
+    },
+    {
+      "description": "Major updates require review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "schedule": ["before 6am on the first day of the month"],
+      "labels": ["major-update"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "schedule": ["at any time"],
+    "prPriority": 20,
+    "labels": ["security", "vulnerability"]
+  },
+  "customManagers": [
+    {
+      "description": "Ansible components in execution-environment.yml",
+      "customType": "regex",
+      "fileMatch": ["execution-environment.yml"],
+      "matchStrings": [
+        "package_pip:\\s*(?<depName>ansible-core|ansible-runner)[~>=]+(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
+    }
+  ],
+  "ignoreDeps": ["python"]
+}

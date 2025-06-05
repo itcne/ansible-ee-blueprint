@@ -1,0 +1,132 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-builder
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-builder
+
+      - name: Validate execution-environment.yml
+        run: |
+          # Check if the file exists and is valid YAML
+          if [ ! -f execution-environment.yml ]; then
+            echo "Error: execution-environment.yml not found"
+            exit 1
+          fi
+          
+          # Basic YAML syntax validation
+          python -c "import yaml; yaml.safe_load(open('execution-environment.yml'))"
+          echo "✓ execution-environment.yml is valid YAML"
+
+      - name: Validate requirements files
+        run: |
+          # Check requirements.txt if it exists and is not empty
+          if [ -f requirements.txt ] && [ -s requirements.txt ]; then
+            pip install --dry-run -r requirements.txt
+            echo "✓ requirements.txt is valid"
+          else
+            echo "ℹ requirements.txt is empty or doesn't exist"
+          fi
+          
+          # Check requirements.yml if it exists and is not empty
+          if [ -f requirements.yml ] && [ -s requirements.yml ]; then
+            python -c "import yaml; yaml.safe_load(open('requirements.yml'))"
+            echo "✓ requirements.yml is valid YAML"
+          else
+            echo "ℹ requirements.yml is empty or doesn't exist"
+          fi
+          
+          # Check bindep.txt format
+          if [ -f bindep.txt ] && [ -s bindep.txt ]; then
+            echo "✓ bindep.txt exists"
+          else
+            echo "ℹ bindep.txt is empty or doesn't exist"
+          fi
+
+      - name: Build test image
+        run: |
+          ansible-builder build \
+            --tag test-ee:pr-${{ github.event.number }} \
+            --container-runtime docker \
+            --verbosity 2
+
+      - name: Test built image
+        run: |
+          # Test basic functionality
+          docker run --rm test-ee:pr-${{ github.event.number }} ansible --version
+          docker run --rm test-ee:pr-${{ github.event.number }} ansible-galaxy --version
+          
+          # Test that we can list collections
+          docker run --rm test-ee:pr-${{ github.event.number }} ansible-galaxy collection list
+
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: test-ee:pr-${{ github.event.number }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Clean up test image
+        if: always()
+        run: |
+          docker rmi test-ee:pr-${{ github.event.number }} || true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const { number } = context.issue;
+            
+            const comment = `## 🔍 Execution Environment Validation Results
+            
+            ✅ **Build Status**: Success
+            ✅ **Configuration**: Valid
+            ✅ **Security Scan**: Completed
+            
+            The Ansible Execution Environment builds successfully and passes all validation checks.
+            
+            ### Next Steps
+            - Once merged to main, the image will be built and published to \`ghcr.io/${owner}/${repo}:latest\`
+            - The image will also be tagged with the commit SHA for traceability
+            
+            Build completed at: ${new Date().toISOString()}`;
+            
+            github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: comment
+            });

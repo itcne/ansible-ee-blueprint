@@ -1,0 +1,11 @@
+# Essential Python dependencies
+jinja2>=3.0.0
+PyYAML>=6.0
+cryptography>=3.4.8
+packaging
+resolvelib>=0.5.3,<1.1.0
+
+# Additional useful packages
+requests>=2.25.0
+netaddr
+passlib
