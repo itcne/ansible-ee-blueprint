@@ -1,3 +1,15 @@
+# [2.0.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.3.0...v2.0.0) (2025-06-05)
+
+
+### Features
+
+* change logic Y ([48630e9](https://github.com/itcne/ansible-ee-blueprint/commit/48630e99098fce0b9e7cc428f1fabb78c17726de))
+
+
+### BREAKING CHANGES
+
+* Implement how to correclty handel some major
+
 # [1.3.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.2.0...v1.3.0) (2025-06-05)
 
 
