@@ -31,25 +31,44 @@ jobs:
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          # Remove 'v' prefix if present for semantic versioning compatibility
+          CLEAN_VERSION=${VERSION#v}
+          
+          # Extract major, minor, patch versions
+          MAJOR=$(echo $CLEAN_VERSION | cut -d. -f1)
+          MINOR=$(echo $CLEAN_VERSION | cut -d. -f2)
+          PATCH=$(echo $CLEAN_VERSION | cut -d. -f3)
+          
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building version: ${VERSION}"
+          echo "clean_version=${CLEAN_VERSION}" >> $GITHUB_OUTPUT
+          echo "major=${MAJOR}" >> $GITHUB_OUTPUT
+          echo "minor=${MINOR}" >> $GITHUB_OUTPUT
+          echo "patch=${PATCH}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION} (Clean: ${CLEAN_VERSION}, Major: ${MAJOR}, Minor: ${MINOR}, Patch: ${PATCH})"
 
       - name: Build and tag release image
         run: |
           ansible-builder build \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.clean_version }} \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }} \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             --container-runtime docker \
             --verbosity 2
 
       - name: Test release image
         run: |
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} ansible --version
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} ansible-galaxy collection list
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.clean_version }} ansible --version
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.clean_version }} ansible-galaxy collection list
 
       - name: Push release images
         run: |
+          # Push all semantic version tags
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.clean_version }}
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.major }}
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Update release notes
