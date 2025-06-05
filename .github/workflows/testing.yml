@@ -12,6 +12,65 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Job to validate conventional commits
+  check-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+
+      - name: Check PR title
+        run: |
+          echo "${{ github.event.pull_request.title }}" | npx commitlint
+          if [ $? -ne 0 ]; then
+            echo "::error::PR title does not follow conventional commit format. See https://www.conventionalcommits.org/ for more information."
+            exit 1
+          fi
+
+      - name: Check Commit Messages
+        run: |
+          # Get PR commits
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For pull requests, get the commits in the PR
+            echo "Checking commits in pull request..."
+            git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+            COMMIT_RANGE="origin/${{ github.event.pull_request.base.ref }}..HEAD"
+          else
+            # For workflow dispatch or other triggers, just check the latest commit
+            echo "Checking latest commit..."
+            COMMIT_RANGE="HEAD~1..HEAD"
+          fi
+          
+          # Check all commits in the range
+          EXIT_CODE=0
+          INVALID_COMMITS=""
+          
+          for commit in $(git log $COMMIT_RANGE --format="%H"); do
+            COMMIT_MSG=$(git log -1 --format="%s" $commit)
+            echo "Checking commit: $COMMIT_MSG"
+            echo "$COMMIT_MSG" | npx commitlint
+            if [ $? -ne 0 ]; then
+              EXIT_CODE=1
+              INVALID_COMMITS="$INVALID_COMMITS\n- $COMMIT_MSG ($(git log -1 --format="%h" $commit))"
+            fi
+          done
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            printf "::error::The following commits do not follow conventional commit format:%s\n\nPlease follow the conventional commit format: <type>[optional scope]: <description>\nSee https://www.conventionalcommits.org/ for more information.\n" "$INVALID_COMMITS"
+            exit 1
+          fi
+
   # Job to setup common resources and extract metadata
   setup:
     runs-on: ubuntu-latest
