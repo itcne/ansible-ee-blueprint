@@ -70,6 +70,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: .cache/trivy
+          key: cache-trivy-${{ github.run_id }}
+          restore-keys: |
+            cache-trivy-
+
       - name: Build Execution Environment
         run: |
           ansible-builder build \
@@ -92,12 +100,35 @@ jobs:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}
           format: 'sarif'
           output: 'trivy-results.sarif'
+          cache-dir: .cache/trivy
+
+      - name: Validate SARIF file
+        if: always()
+        run: |
+          if [ -f "trivy-results.sarif" ]; then
+            echo "✓ SARIF file exists"
+            # Basic JSON validation
+            if jq empty trivy-results.sarif 2>/dev/null; then
+              echo "✓ SARIF file is valid JSON"
+              # Check if it has the basic SARIF structure
+              if jq -e '.version and .runs' trivy-results.sarif >/dev/null 2>&1; then
+                echo "✓ SARIF file has required structure"
+              else
+                echo "⚠ SARIF file missing required structure, but continuing..."
+              fi
+            else
+              echo "⚠ SARIF file is not valid JSON, but continuing..."
+            fi
+          else
+            echo "⚠ SARIF file not found, skipping validation"
+          fi
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
 
       - name: Tag and push images to GHCR
         if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push_image)
