@@ -1,0 +1,145 @@
+name: PR Testing
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Job to setup common resources and extract metadata
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      json: ${{ steps.meta.outputs.json }}
+      image_name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      build_tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+
+  # Job to build the execution environment
+  build:
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      build_tag: ${{ needs.setup.outputs.build_tag }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ansible-builder
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-builder
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Execution Environment
+        run: |
+          ansible-builder build \
+            --tag ${{ needs.setup.outputs.build_tag }} \
+            --container-runtime docker \
+            --verbosity 2
+
+      - name: Save image to artifact
+        run: |
+          mkdir -p /tmp/image
+          docker save ${{ needs.setup.outputs.build_tag }} -o /tmp/image/image.tar
+
+      - name: Upload image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image/image.tar
+          retention-days: 1
+
+  # Job to test the execution environment
+  test:
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image
+
+      - name: Load Docker image
+        run: |
+          docker load -i /tmp/image/image.tar
+
+      - name: Test Execution Environment
+        run: |
+          # Test basic functionality
+          docker run --rm ${{ needs.setup.outputs.build_tag }} ansible --version
+          docker run --rm ${{ needs.setup.outputs.build_tag }} ansible-galaxy --version
+          
+          # Test that collections are available (if any are specified)
+          docker run --rm ${{ needs.setup.outputs.build_tag }} ansible-galaxy collection list
+
+  # Job to scan the image for vulnerabilities
+  scan:
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    permissions:
+      contents: read
+      security-events: write
+      
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image
+
+      - name: Load Docker image
+        run: |
+          docker load -i /tmp/image/image.tar
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: .cache/trivy
+          key: cache-trivy-${{ github.run_id }}
+          restore-keys: |
+            cache-trivy-
+
+      # Only run table format scan to show findings in the PR
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.setup.outputs.build_tag }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'  # Don't fail the build on vulnerabilities
+          cache-dir: .cache/trivy
+          
+      # Note: We're not generating SARIF or uploading to GitHub Security for PR tests
+      # Security findings are directly visible in the workflow logs
