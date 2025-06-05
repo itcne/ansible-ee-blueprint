@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.1.0...v1.2.0) (2025-06-05)
+
+
+### Features
+
+* added feature ZY ([71f3166](https://github.com/itcne/ansible-ee-blueprint/commit/71f31664026f0b4f73c81dc65730dff2c3e51d22))
+
 # [1.1.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.0.0...v1.1.0) (2025-06-05)
 
 
