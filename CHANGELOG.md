@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.2.0...v1.3.0) (2025-06-05)
+
+
+### Features
+
+* update ([177d552](https://github.com/itcne/ansible-ee-blueprint/commit/177d552ce7fcc0e8498d848b13b7f4b503fbe052))
+
 # [1.2.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.1.0...v1.2.0) (2025-06-05)
 
 
