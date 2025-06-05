@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/itcne/ansible-ee-blueprint/compare/v2.0.0...v2.1.0) (2025-06-05)
+
+
+### Features
+
+* integrate some new feature ([6d734fb](https://github.com/itcne/ansible-ee-blueprint/commit/6d734fb2b2230920e9c34f364420e3ad46bac8c4))
+
 # [2.0.0](https://github.com/itcne/ansible-ee-blueprint/compare/v1.3.0...v2.0.0) (2025-06-05)
 
 
