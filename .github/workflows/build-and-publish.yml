@@ -115,8 +115,7 @@ jobs:
         if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.push_image)
         run: |
           # Tag the built image with all metadata tags
-          IFS=$'\n'
-          for tag in ${{ steps.meta.outputs.tags }}; do
+          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
             echo "Tagging: $tag"
             docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }} "$tag"
             echo "Pushing: $tag"
@@ -141,8 +140,3 @@ jobs:
         with:
           name: sbom
           path: sbom.spdx.json
-
-      - name: Clean up temporary image
-        if: always()
-        run: |
-          docker rmi ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.run_number }} || true
