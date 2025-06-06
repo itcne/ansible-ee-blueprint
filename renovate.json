@@ -47,8 +47,8 @@
     },
     {
       "description": "Security vulnerability fixes",
-      "matchUpdateTypes": ["patch", "minor", "major"],
-      "matchVulnerabilityAlerts": true,
+      "matchPackagePatterns": [".*"],
+      "matchVulnerabilityAlert": true,
       "prPriority": 20,
       "labels": ["security", "vulnerability", "dependencies"]
     }
