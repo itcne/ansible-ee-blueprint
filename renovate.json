@@ -35,14 +35,12 @@
       "description": "Base image - monthly updates",
       "matchDatasources": ["docker"],
       "matchPackagePatterns": ["^registry\\.access\\.redhat\\.com/ubi9/"],
-      "schedule": ["before 6am on the first day of the month"],
       "labels": ["base-image", "dependencies", "deps:docker"]
     },
     {
       "description": "Major updates require review",
       "matchUpdateTypes": ["major"],
       "automerge": false,
-      "schedule": ["before 6am on the first day of the month"],
       "labels": ["major-update", "dependencies", "breaking-change"]
     },
     {
@@ -54,8 +52,7 @@
     }
   ],
   "vulnerabilityAlerts": {
-    "enabled": true,
-    "schedule": ["at any time"]
+    "enabled": true
   },
   "customManagers": [
     {
@@ -78,6 +75,5 @@
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
     }
-  ],
-  "ignoreDeps": ["python"]
+  ]
 }
