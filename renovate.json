@@ -46,13 +46,14 @@
     {
       "description": "Security vulnerability fixes",
       "matchPackagePatterns": [".*"],
-      "matchVulnerabilityAlert": true,
       "prPriority": 20,
       "labels": ["security", "vulnerability", "dependencies"]
     }
   ],
   "vulnerabilityAlerts": {
-    "enabled": true
+    "enabled": true,
+    "labels": ["security", "vulnerability"],
+    "prPriority": 20
   },
   "customManagers": [
     {
