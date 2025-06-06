@@ -28,6 +28,7 @@
       "matchManagers": ["github-actions"],
       "groupName": "github actions",
       "automerge": true,
+      "pinDigits": true,
       "labels": ["github-actions"]
     },
     {
