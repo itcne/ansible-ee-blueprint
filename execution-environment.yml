@@ -20,7 +20,7 @@ dependencies:
 
   # (optional) install ansible-runner if the base image doesn't already contain it
   ansible_runner:
-    package_pip: ansible-runner>=2.3.0
+    package_pip: ansible-runner>=2.3.6
 
   # Python packages from requirements.txt
   python: requirements.txt
